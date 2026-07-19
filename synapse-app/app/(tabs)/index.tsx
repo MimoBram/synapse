@@ -1,98 +1,89 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ActivityRow, type ActivityItemData } from '@/src/components/activity-row';
+import { FadeInUp } from '@/src/components/fade-in-up';
+import { ProjectCompactCard, ProjectHeroCard, type ProjectSummary } from '@/src/components/project-card';
+import { ScreenContainer } from '@/src/components/screen-container';
+import { StatCell } from '@/src/components/stat-cell';
+import { Avatar } from '@/src/design-system/avatar';
+import { Text } from '@/src/design-system/text';
 
-export default function HomeScreen() {
+// Static mock data until the openapi-fetch + TanStack Query data layer is
+// wired up (next increment). Shapes mirror ProjectRow / ActivityRow from
+// server/openapi.yaml so swapping in real data later is a straight fetch.
+const heroProject: ProjectSummary = {
+  id: '1',
+  title: 'Synapse Landing Page',
+  projectType: 'open_source',
+  skills: ['react', 'tailwind'],
+  updatedLabel: '2 hari lalu',
+  contributorCount: 4,
+};
+
+const myProjects: ProjectSummary[] = [
+  { id: '2', title: 'Mobile Redesign', projectType: 'hiring', skills: ['figma'], updatedLabel: '5 hari lalu', contributorCount: 2 },
+  { id: '3', title: 'API Dokumentasi', projectType: 'personal', skills: ['node.js'], updatedLabel: '1 minggu lalu', contributorCount: 1 },
+];
+
+const activity: ActivityItemData[] = [
+  { id: '1', actorInitials: 'AR', message: 'Ayu bergabung ke Synapse Landing Page', timeLabel: '2j' },
+  { id: '2', actorInitials: 'DP', message: 'Dimas mengomentari Mobile Redesign', timeLabel: '5j' },
+  { id: '3', actorInitials: 'BA', message: 'Kamu membuat API Dokumentasi', timeLabel: '1m' },
+];
+
+export default function DashboardScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="pb-10 pt-6">
+      <ScreenContainer className="gap-6">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-3">
+            <Avatar fallback="BA" />
+            <View>
+              <Text variant="caption">Selamat datang kembali</Text>
+              <Text variant="subheading">Bimo</Text>
+            </View>
+          </View>
+          <View className="h-10 w-10 items-center justify-center rounded-full border border-border bg-card">
+            <IconSymbol name="bell.fill" size={18} color={Colors[colorScheme].icon} />
+            <View className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-background bg-spark" />
+          </View>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <FadeInUp className="flex-row gap-3">
+          <StatCell value={myProjects.length + 1} label="Proyek aktif" />
+          <StatCell value={7} label="Kolaborator" />
+        </FadeInUp>
+
+        <FadeInUp delay={60}>
+          <ProjectHeroCard project={heroProject} />
+        </FadeInUp>
+
+        <FadeInUp delay={120} className="gap-3">
+          <View className="flex-row items-center justify-between">
+            <Text variant="subheading">Proyek saya</Text>
+            <Text className="text-[13px] font-semibold text-primary">Lihat semua</Text>
+          </View>
+          <View className="flex-row gap-3">
+            {myProjects.map((project) => (
+              <ProjectCompactCard key={project.id} project={project} />
+            ))}
+          </View>
+        </FadeInUp>
+
+        <FadeInUp delay={180} className="gap-1">
+          <Text variant="subheading" className="mb-1">
+            Aktivitas terbaru
+          </Text>
+          {activity.map((item) => (
+            <ActivityRow key={item.id} item={item} />
+          ))}
+        </FadeInUp>
+      </ScreenContainer>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

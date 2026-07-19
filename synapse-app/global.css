@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Synapse palette — see .claude/plans / the design-language artifact for
+ * the rationale (Crafted / Warm / Vivid). Ink is the one primary accent;
+ * spark and sprout are semantic tints (hiring / open_source), not extra
+ * accents to reach for elsewhere.
+ */
+@layer base {
+  :root {
+    --background: 255 20% 97%;
+    --foreground: 255 7% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 255 7% 12%;
+    --primary: 243 57% 51%;
+    --primary-strong: 243 57% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 255 20% 94%;
+    --secondary-foreground: 255 7% 12%;
+    --muted: 255 20% 94%;
+    --muted-foreground: 255 6% 44%;
+    --subtle-foreground: 255 8% 63%;
+    --accent: 255 20% 94%;
+    --accent-foreground: 255 7% 12%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 255 7% 91%;
+    --input: 255 7% 91%;
+    --ring: 243 57% 51%;
+
+    --spark: 14 65% 55%;
+    --spark-foreground: 0 0% 100%;
+    --spark-tint: 14 65% 95%;
+    --spark-tint-foreground: 14 70% 40%;
+    --sprout: 158 82% 34%;
+    --sprout-foreground: 0 0% 100%;
+    --sprout-tint: 150 55% 94%;
+    --sprout-tint-foreground: 155 82% 26%;
+    --ink-tint: 243 60% 96%;
+    --ink-tint-foreground: 243 57% 51%;
+  }
+
+  .dark:root {
+    --background: 258 12% 8%;
+    --foreground: 270 20% 96%;
+    --card: 258 14% 12%;
+    --card-foreground: 270 20% 96%;
+    --primary: 237 76% 76%;
+    --primary-strong: 237 80% 80%;
+    --primary-foreground: 258 12% 8%;
+    --secondary: 258 13% 15%;
+    --secondary-foreground: 270 20% 96%;
+    --muted: 258 13% 15%;
+    --muted-foreground: 258 10% 66%;
+    --subtle-foreground: 255 9% 46%;
+    --accent: 258 13% 15%;
+    --accent-foreground: 270 20% 96%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 258 10% 20%;
+    --input: 258 10% 20%;
+    --ring: 237 76% 76%;
+
+    --spark: 18 85% 64%;
+    --spark-foreground: 258 12% 8%;
+    --spark-tint: 14 33% 17%;
+    --spark-tint-foreground: 18 80% 74%;
+    --sprout: 154 55% 49%;
+    --sprout-foreground: 258 12% 8%;
+    --sprout-tint: 154 40% 14%;
+    --sprout-tint-foreground: 152 58% 65%;
+    --ink-tint: 245 30% 20%;
+    --ink-tint-foreground: 237 78% 83%;
+  }
+}
