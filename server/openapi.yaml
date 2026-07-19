@@ -1,0 +1,1030 @@
+openapi: 3.0.3
+info:
+  title: Synapse API
+  description: >
+    Backend API for Synapse, a developer/designer collaboration platform.
+    All endpoints are prefixed with `/api` except the health check.
+    Authentication is a custom bcrypt + JWT scheme (not Supabase Auth) —
+    obtain a token from `/api/auth/register` or `/api/auth/login` and send
+    it as `Authorization: Bearer <token>` on protected routes.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Profiles
+  - name: Skills
+  - name: Projects
+  - name: Collaborations
+  - name: Comments
+  - name: Follows
+  - name: Likes
+  - name: Saved Projects
+  - name: Notifications
+  - name: Activity
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Auth]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+              example: { status: "ok" }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterInput" }
+            example:
+              email: jane@example.com
+              username: jane_dev
+              password: SuperSecret123
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResult" }
+              example:
+                profile:
+                  id: c11d8df9-1c76-47e8-96ff-5a75671cdb38
+                  email: jane@example.com
+                  username: jane_dev
+                  role: developer
+                  created_at: "2026-07-19T14:48:47.379Z"
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+            example: { email: jane@example.com, password: SuperSecret123 }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResult" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/me:
+    get:
+      tags: [Profiles]
+      summary: Get the current user's profile
+      responses:
+        "200":
+          description: Current profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeProfile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [Profiles]
+      summary: Update the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfileInput" }
+            example: { username: jane_designs }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeProfile" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/me/avatar:
+    post:
+      tags: [Profiles]
+      summary: Upload the current user's avatar image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar: { type: string, format: binary }
+              required: [avatar]
+      responses:
+        "200":
+          description: Profile with the new avatar_url
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeProfile" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/profiles/{id}:
+    get:
+      tags: [Profiles]
+      summary: Get a user's public profile
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Public profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/profiles/{id}/follow:
+    post:
+      tags: [Follows]
+      summary: Follow a user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204": { description: Followed }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [Follows]
+      summary: Unfollow a user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204": { description: Unfollowed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/profiles/{id}/followers:
+    get:
+      tags: [Follows]
+      summary: List a user's followers
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of followers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FollowPage" }
+
+  /api/profiles/{id}/following:
+    get:
+      tags: [Follows]
+      summary: List who a user is following
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated list of followed users
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FollowPage" }
+
+  /api/skills:
+    get:
+      tags: [Skills]
+      summary: List/search the master skill tag list
+      security: []
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive substring filter on skill name
+          schema: { type: string }
+      responses:
+        "200":
+          description: Skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Skill" }
+              example:
+                data:
+                  - { id: "5b1e...", name: "react" }
+                  - { id: "9f2a...", name: "figma" }
+
+  /api/me/skills:
+    put:
+      tags: [Skills]
+      summary: Replace the current user's skill list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetSkillsInput" }
+            example: { skill_names: ["React", "Tailwind", "Figma"] }
+      responses:
+        "200":
+          description: The user's new skill list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Skill" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/projects:
+    get:
+      tags: [Projects]
+      summary: List/search projects
+      description: >
+        Defaults to public projects only. Pass `mine=true` (with a token)
+        to list the caller's own projects instead, including private ones.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          description: Keyword search over title/description
+          schema: { type: string }
+        - name: skill
+          in: query
+          description: Filter to projects tagged with this skill name
+          schema: { type: string }
+        - name: project_type
+          in: query
+          schema: { $ref: "#/components/schemas/ProjectType" }
+        - name: mine
+          in: query
+          schema: { type: string, enum: ["true", "false"] }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated projects
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectPage" }
+    post:
+      tags: [Projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProjectInput" }
+            example:
+              title: Synapse Landing Page
+              description: Need a React dev for the marketing site
+              visibility: public
+              project_type: open_source
+              auto_approve_join: true
+              skill_names: ["React", "Tailwind"]
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/projects/{id}:
+    get:
+      tags: [Projects]
+      summary: Get a project by id
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Projects]
+      summary: Update a project (creator only)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProjectInput" }
+            example: { description: "Now hiring a designer too" }
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Projects]
+      summary: Delete a project (creator only)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/projects/{id}/assets:
+    post:
+      tags: [Projects]
+      summary: Upload an image asset to a project (creator only)
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                asset: { type: string, format: binary }
+              required: [asset]
+      responses:
+        "201":
+          description: Created project asset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectAsset" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/projects/{projectId}/collaborations:
+    get:
+      tags: [Collaborations]
+      summary: List a project's collaborators/invites
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated collaborations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CollaborationPage" }
+    post:
+      tags: [Collaborations]
+      summary: Invite a user to a project, or request to join it
+      description: >
+        If the caller is the project's creator, `user_id` is required and this
+        sends an invite (`initiated_by: owner`). Otherwise the caller is
+        requesting to join themselves (`initiated_by: user`); if the project
+        has `auto_approve_join: true` the collaboration is created with
+        `status: accepted` immediately, skipping the pending state.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCollaborationInput" }
+            example: { user_id: "698bd3c3-8da7-445f-87c4-b80319afc2ff", role: contributor }
+      responses:
+        "201":
+          description: Created (or updated) collaboration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Collaboration" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/collaborations/{id}:
+    patch:
+      tags: [Collaborations]
+      summary: Accept, reject, or cancel a pending collaboration
+      description: >
+        `accept`/`reject` may only be performed by the recipient of the
+        invite/request. `cancel` may only be performed by whoever initiated
+        it. Returns 204 with no body on cancel (the row is deleted).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RespondCollaborationInput" }
+            example: { action: accept }
+      responses:
+        "200":
+          description: Updated collaboration (accept/reject)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Collaboration" }
+        "204": { description: Cancelled (row deleted) }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/me/collaborations:
+    get:
+      tags: [Collaborations]
+      summary: List the current user's collaborations
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated collaborations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CollaborationPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/projects/{projectId}/comments:
+    get:
+      tags: [Comments]
+      summary: List comments on a project
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated comments
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommentPage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Comments]
+      summary: Comment on a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCommentInput" }
+            example: { content: "This looks great, happy to help with the design!" }
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/comments/{id}:
+    delete:
+      tags: [Comments]
+      summary: Delete a comment (author or project owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/projects/{projectId}/likes:
+    get:
+      tags: [Likes]
+      summary: List who liked a project
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated likes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LikePage" }
+    post:
+      tags: [Likes]
+      summary: Like a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+      responses:
+        "204": { description: Liked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [Likes]
+      summary: Unlike a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+      responses:
+        "204": { description: Unliked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/projects/{projectId}/save:
+    post:
+      tags: [Saved Projects]
+      summary: Bookmark a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+      responses:
+        "204": { description: Saved }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [Saved Projects]
+      summary: Remove a project bookmark
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdPath"
+      responses:
+        "204": { description: Removed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/me/saved-projects:
+    get:
+      tags: [Saved Projects]
+      summary: List the current user's saved/bookmarked projects
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated saved projects
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedProjectPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/me/notifications:
+    get:
+      tags: [Notifications]
+      summary: List the current user's notifications
+      parameters:
+        - name: unread
+          in: query
+          description: Set to "true" to only return unread notifications
+          schema: { type: string, enum: ["true", "false"] }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated notifications
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/me/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/me/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all of the current user's notifications as read
+      responses:
+        "204": { description: All notifications marked read }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/activity:
+    get:
+      tags: [Activity]
+      summary: Public activity feed (created projects, joins, comments, follows, likes)
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Paginated activity feed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActivityPage" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectIdPath:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit:
+      name: limit
+      in: query
+      description: Page size (default 20, max 100)
+      schema: { type: integer, default: 20, maximum: 100 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque pagination cursor from a previous page's `nextCursor`
+      schema: { type: string }
+
+  responses:
+    ValidationError:
+      description: Request body/query failed validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "email: Invalid email address; password: Too small: expected string to have >=8 characters" }
+    Unauthorized:
+      description: Missing, invalid, or expired token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Missing or invalid Authorization header" }
+    Forbidden:
+      description: Authenticated, but not allowed to perform this action
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Only the project creator can perform this action" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Project not found" }
+    Conflict:
+      description: Request conflicts with existing state
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Already liked this project" }
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: "Too many requests, please try again later" }
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status: { type: string, example: ok }
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+
+    Role:
+      type: string
+      enum: [developer, designer, admin]
+
+    ProjectType:
+      type: string
+      enum: [open_source, hiring, personal]
+
+    Visibility:
+      type: string
+      enum: [public, private]
+
+    RegisterInput:
+      type: object
+      required: [email, username, password]
+      properties:
+        email: { type: string, format: email }
+        username: { type: string, minLength: 3, maxLength: 30, pattern: "^[a-zA-Z0-9_]+$" }
+        password: { type: string, minLength: 8, maxLength: 72 }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    PublicProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        avatar_url: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    MeProfile:
+      allOf:
+        - $ref: "#/components/schemas/PublicProfile"
+        - type: object
+          properties:
+            email: { type: string, format: email }
+
+    UpdateProfileInput:
+      type: object
+      properties:
+        username: { type: string, minLength: 3, maxLength: 30, pattern: "^[a-zA-Z0-9_]+$" }
+
+    AuthResult:
+      type: object
+      properties:
+        profile:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            username: { type: string }
+            role: { $ref: "#/components/schemas/Role" }
+            created_at: { type: string, format: date-time }
+        token: { type: string, description: "JWT — send as Authorization: Bearer <token>" }
+
+    Skill:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    SetSkillsInput:
+      type: object
+      required: [skill_names]
+      properties:
+        skill_names:
+          type: array
+          maxItems: 30
+          items: { type: string, minLength: 1, maxLength: 50 }
+
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        creator_id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        repo_url: { type: string, nullable: true }
+        visibility: { $ref: "#/components/schemas/Visibility" }
+        project_type: { $ref: "#/components/schemas/ProjectType" }
+        cover_image_url: { type: string, nullable: true }
+        auto_approve_join: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    CreateProjectInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        repo_url: { type: string, format: uri }
+        visibility: { $ref: "#/components/schemas/Visibility" }
+        project_type: { $ref: "#/components/schemas/ProjectType" }
+        auto_approve_join: { type: boolean }
+        skill_names:
+          type: array
+          maxItems: 20
+          items: { type: string }
+
+    UpdateProjectInput:
+      allOf:
+        - $ref: "#/components/schemas/CreateProjectInput"
+      description: All fields optional; at least one must be present.
+
+    ProjectAsset:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        project_id: { type: string, format: uuid }
+        url: { type: string }
+        uploaded_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    ProjectPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Project" }
+        nextCursor: { type: string, nullable: true }
+
+    CollaborationRole:
+      type: string
+      enum: [owner, maintainer, contributor, reviewer]
+
+    CollaborationStatus:
+      type: string
+      enum: [pending, accepted, rejected]
+
+    Collaboration:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        project_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/CollaborationRole" }
+        status: { $ref: "#/components/schemas/CollaborationStatus" }
+        initiated_by: { type: string, enum: [owner, user] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateCollaborationInput:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Required when the caller is the project's creator (invite). Omit when requesting to join as yourself.
+        role: { type: string, enum: [maintainer, contributor, reviewer] }
+
+    RespondCollaborationInput:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [accept, reject, cancel] }
+
+    CollaborationPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Collaboration" }
+        nextCursor: { type: string, nullable: true }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        project_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CreateCommentInput:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 2000 }
+
+    CommentPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Comment" }
+        nextCursor: { type: string, nullable: true }
+
+    Follow:
+      type: object
+      properties:
+        follower_id: { type: string, format: uuid }
+        following_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    FollowPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Follow" }
+        nextCursor: { type: string, nullable: true }
+
+    Like:
+      type: object
+      properties:
+        project_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    LikePage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Like" }
+        nextCursor: { type: string, nullable: true }
+
+    SavedProject:
+      type: object
+      properties:
+        project_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    SavedProjectPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/SavedProject" }
+        nextCursor: { type: string, nullable: true }
+
+    NotificationType:
+      type: string
+      enum: [invite, invite_accepted, invite_rejected, comment, follow, like]
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        recipient_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid, nullable: true }
+        type: { $ref: "#/components/schemas/NotificationType" }
+        payload: { type: object, additionalProperties: true }
+        is_read: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    NotificationPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        nextCursor: { type: string, nullable: true }
+
+    ActivityVerb:
+      type: string
+      enum: [created_project, joined_project, commented, followed, liked]
+
+    Activity:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        verb: { $ref: "#/components/schemas/ActivityVerb" }
+        target_type: { type: string, enum: [project, profile, comment] }
+        target_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    ActivityPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Activity" }
+        nextCursor: { type: string, nullable: true }
