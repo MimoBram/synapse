@@ -11,6 +11,7 @@ create table if not exists profiles (
   username text unique not null,
   password_hash text not null,
   role text not null default 'developer' check (role in ('developer', 'designer', 'admin')),
+  avatar_url text,
   created_at timestamptz not null default now()
 );
 
@@ -39,11 +40,36 @@ create table if not exists projects (
   description text,
   repo_url text,
   visibility text not null default 'private' check (visibility in ('public', 'private')),
+  project_type text not null default 'personal' check (project_type in ('open_source', 'hiring', 'personal')),
+  cover_image_url text,
   auto_approve_join boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 create index if not exists idx_projects_creator_id on projects(creator_id);
+create index if not exists idx_projects_project_type on projects(project_type);
+create index if not exists idx_projects_visibility on projects(visibility);
+
+-- Skills a project is looking for (distinct from profile_skills, which
+-- describes a person's own skills) — powers the "search by skill" filter
+create table if not exists project_skills (
+  project_id uuid not null references projects(id) on delete cascade,
+  skill_id uuid not null references skills(id) on delete cascade,
+  primary key (project_id, skill_id)
+);
+
+create index if not exists idx_project_skills_skill_id on project_skills(skill_id);
+
+-- Gallery of images per project (portfolio/asset uploads)
+create table if not exists project_assets (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  url text not null,
+  uploaded_by uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_project_assets_project_id on project_assets(project_id);
 
 -- ============================================================
 -- Collaboration: current membership state + historical log
@@ -163,3 +189,15 @@ begin
     alter publication supabase_realtime add table activity_log;
   end if;
 end $$;
+
+-- ============================================================
+-- Storage buckets (avatars, project assets) — public read, writes via backend only
+-- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('project-assets', 'project-assets', true)
+on conflict (id) do nothing;
