@@ -1,5 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, View } from "react-native";
+import { Avatar } from "@/src/design-system/avatar";
 import { Badge } from "@/src/design-system/badge";
 import { Button } from "@/src/design-system/button";
 import { Card } from "@/src/design-system/card";
@@ -15,6 +16,10 @@ export interface ProjectSummary {
   skills: string[];
   updatedLabel: string;
   contributorCount: number;
+  ownerName: string;
+  ownerInitials: string;
+  /** "Join" for discoverable projects, "View" once you're already a collaborator/owner. */
+  actionLabel: "Join" | "View";
 }
 
 const projectTypeBadge: Record<ProjectType, "sprout" | "spark" | "ink"> = {
@@ -29,38 +34,42 @@ const projectTypeLabel: Record<ProjectType, string> = {
   personal: "personal",
 };
 
-/** Large featured card with a stylized gradient cover — the "continue where you left off" cell. */
+/** Full-width discovery feed card: cover, tags, owner row, pill action button. */
 export function ProjectHeroCard({ project, onPress }: { project: ProjectSummary; onPress?: () => void }) {
   return (
     <View className="overflow-hidden rounded-card border border-border bg-card" style={cardShadowLg}>
-      <LinearGradient colors={["#4338ca", "#7c6ff0", "#dd5b3e"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 96 }}>
+      <LinearGradient colors={["#4338ca", "#7c6ff0", "#dd5b3e"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 128 }}>
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.35)"]}
-          style={{ flex: 1, justifyContent: "flex-end", padding: 14 }}>
-          <Text mono variant="caption" className="uppercase tracking-wide text-white" style={{ opacity: 0.85 }}>
-            Lanjutkan
-          </Text>
+          colors={["transparent", "rgba(0,0,0,0.4)"]}
+          style={{ flex: 1, justifyContent: "flex-end", padding: 16 }}>
+          <View className="flex-row flex-wrap gap-2">
+            <Badge variant={projectTypeBadge[project.projectType]}>{projectTypeLabel[project.projectType]}</Badge>
+            {project.skills.slice(0, 2).map((skill) => (
+              <Badge key={skill} variant="ink">
+                {skill}
+              </Badge>
+            ))}
+          </View>
         </LinearGradient>
       </LinearGradient>
 
       <View className="p-4">
-        <View className="mb-3 flex-row flex-wrap gap-2">
-          <Badge variant={projectTypeBadge[project.projectType]}>{projectTypeLabel[project.projectType]}</Badge>
-          {project.skills.slice(0, 2).map((skill) => (
-            <Badge key={skill} variant="ink">
-              {skill}
-            </Badge>
-          ))}
-        </View>
         <Text variant="subheading" className="mb-1">
           {project.title}
         </Text>
-        <Text mono variant="caption" className="mb-3">
+        <Text mono variant="caption" className="mb-4">
           {project.updatedLabel} · {project.contributorCount} kontributor
         </Text>
-        <Button className="w-full" onPress={onPress}>
-          Buka proyek
-        </Button>
+
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
+            <Avatar fallback={project.ownerInitials} size={32} />
+            <Text className="text-[13px] font-medium">{project.ownerName}</Text>
+          </View>
+          <Button size="sm" className="rounded-full px-5" onPress={onPress}>
+            {project.actionLabel}
+          </Button>
+        </View>
       </View>
     </View>
   );
@@ -70,7 +79,7 @@ export function ProjectHeroCard({ project, onPress }: { project: ProjectSummary;
 export function ProjectCompactCard({ project, onPress }: { project: ProjectSummary; onPress?: () => void }) {
   return (
     <Pressable onPress={onPress} className="flex-1" accessibilityRole="button">
-      <Card className="p-3">
+      <Card className="rounded-3xl p-3">
         <Badge variant={projectTypeBadge[project.projectType]} className="mb-2">
           {projectTypeLabel[project.projectType]}
         </Badge>
